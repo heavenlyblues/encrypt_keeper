@@ -1,7 +1,6 @@
 import argparse
 from cryptography.fernet import Fernet
 
-
 def gen_encryption_key(keyname):
     key = Fernet.generate_key()    
     try:
@@ -13,11 +12,9 @@ def gen_encryption_key(keyname):
     except IOError as e:
         print(f"An unexpected I/O error occurred: {e}")
 
-
 def gen_password_based_encryption_key(keyname):
     # Define the logic for generating a password-based encryption key
     pass
-
 
 def crypt_keeper(action, keyname, input_file, output_file):
     try:
@@ -50,7 +47,6 @@ def crypt_keeper(action, keyname, input_file, output_file):
         print(e)
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
-
 
 def get_command_line_args():
     parser = argparse.ArgumentParser(
@@ -92,7 +88,7 @@ def get_command_line_args():
 
     if args.encrypt or args.decrypt:
             if not args.input_file or not args.output_file:
-                parser.error("encrypt/decrypt requires both input_file and output_file")
+                parser.error("Encrypt and decrypt require both input_file and output_file")
 
     return args
 
