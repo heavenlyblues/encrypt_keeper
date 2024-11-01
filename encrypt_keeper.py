@@ -150,13 +150,13 @@ def get_command_line_args():
         "Encrypt, decrypt, and manage keys with optional password protection."
     )
     parser.add_argument(
-        "-g", "--generate", 
-        help="Generate an encryption key. Use with -p to create a password-protected key.", 
+        "-k", "--key", 
+        help="Generate an encryption key.", 
         action="store_true"
     )
     parser.add_argument(
-        "-p", "--password", 
-        help="Can be use with -g to generate a password-based encryption key.", 
+        "-s", "--secure_key", 
+        help="Generate a password-based encryption key.", 
         action="store_true"
     )
     parser.add_argument(
@@ -189,10 +189,9 @@ def get_command_line_args():
 
     args = parser.parse_args()
     
-    if not (args.generate or args.password or args.encrypt or args.decrypt):
-        parser.error("At least one action is required: --generate, --encrypt, or --decrypt.")
-    
-    # Additional check for required input_file with encryption or decryption
+    if not (args.key or args.secure_key or args.encrypt or args.decrypt):
+        parser.error("At least one action is required: --key, --encrypt, or --decrypt.")
+
     if (args.encrypt or args.decrypt) and not args.input_file:
         parser.error("Encrypt and decrypt require an input file.")
 
@@ -203,16 +202,15 @@ def main():
     
     # Dictionary with 'keys' as tuples and 'values' as lambda functions
     commands = {
-        ("generate", "password"): lambda: gen_password_based_encryption_key(args.key_file),
-        ("generate",): lambda: gen_encryption_key(args.key_file),
-        ("password",): lambda: print("Error: -p requires -g to generate a password-based encryption key."),
-        ("encrypt",): lambda: crypt_keeper("encrypt", args.key_file, args.input_file, args.output_file),
-        ("decrypt",): lambda: crypt_keeper("decrypt", args.key_file, args.input_file, args.output_file)
+        "key": lambda: gen_encryption_key(args.key_file),
+        "secure_key": lambda: gen_password_based_encryption_key(args.key_file),
+        "encrypt": lambda: crypt_keeper("encrypt", args.key_file, args.input_file, args.output_file),
+        "decrypt": lambda: crypt_keeper("decrypt", args.key_file, args.input_file, args.output_file)
     }
     
     # Iterate over actions and execute the first matching condition
-    for keys, command in commands.items():
-        if all(getattr(args, key) for key in keys):
+    for key, command in commands.items():
+        if getattr(args, key):
             command()
             break
 
