@@ -27,7 +27,8 @@ def gen_encryption_key(keyname):
         print(f"Error: Could not write to '{keyname}'. {e}")
 
 
-# Generate a password-based key, save salt and keys as byte strings in base64 with 'PWDKEY' marker.
+# Generate a password-based Scrypt key, save salt and keys to file 
+# as byte strings in base64 with 'PWDKEY' marker.
 def gen_password_based_encryption_key(keyname):
     print("Please create a password for your encryption key.")
     password = getpass.getpass("Password: ")
@@ -40,12 +41,13 @@ def gen_password_based_encryption_key(keyname):
             file.write(b"PWDKEY")
             file.write(salt_b64 + b'\n')
             file.write(key_b64 + b'\n')
-        print("Password hash saved successfully.")
+        print("Key file saved successfully.")
     except OSError as e:
         print(f"Error: Could not write to '{keyname}'. {e}")
 
 
-# Derive a key using Scrypt with the provided salt and password, return salt and key as base64.
+# Derive a key using Scrypt with the provided salt 
+# and password, return salt and key as base64.
 def derive_key(salt, password):
     kdf = Scrypt(
         salt=salt,
@@ -113,7 +115,10 @@ def load_fernet_instance(keyname):
 
 
 # Take "action" – encrypt or decrypt a file using the specified key file
-def crypt_keeper(action, keyname, input_file, output_file):
+def crypt_keeper(action, keyname, *args):
+    input_file = args[0]
+    output_file = args[1] if args[1] is not None else input_file 
+
     f = load_fernet_instance(keyname)
     if f is None:
         print("Error: Failed to load encryption key.")
@@ -124,7 +129,7 @@ def crypt_keeper(action, keyname, input_file, output_file):
             data = file.read()
 
         token = f.encrypt(data) if action == "encrypt" else f.decrypt(data)
-        print(f"File {action}ed successfully.")
+        print(f"Data {action}ed successfully...")
         
         with open(output_file, "wb") as file:
             file.write(token)
@@ -140,42 +145,76 @@ def crypt_keeper(action, keyname, input_file, output_file):
 
 # Parse command-line arguments for key generation, encryption, and decryption.
 def get_command_line_args():
-    parser = argparse.ArgumentParser(description="WELCOME TO THE CRYPT... ")
-    
-    parser.add_argument("-g", "--generate", help="generate encryption key", action="store_true")
-    parser.add_argument("-p", "--password", help="generate password-based encryption key", action="store_true")
-    parser.add_argument("-e", "--encrypt", help="encrypt file", action="store_true")
-    parser.add_argument("-d", "--decrypt", help="decrypt file", action="store_true")
-
-    parser.add_argument("keyname", type=str, help="Specify your key file name")
-    parser.add_argument("input_file", nargs="?", type=str, help="File to be processed")
-    parser.add_argument("output_file", nargs="?", type=str, help="Output file")
+    parser = argparse.ArgumentParser(
+        description="WELCOME TO THE CRYPT..."
+        "Encrypt, decrypt, and manage keys with optional password protection."
+    )
+    parser.add_argument(
+        "-g", "--generate", 
+        help="Generate an encryption key. Use with -p to create a password-protected key.", 
+        action="store_true"
+    )
+    parser.add_argument(
+        "-p", "--password", 
+        help="Can be use with -g to generate a password-based encryption key.", 
+        action="store_true"
+    )
+    parser.add_argument(
+        "-e", "--encrypt", 
+        help="Encrypt a file using the specified key.", 
+        action="store_true"
+    )
+    parser.add_argument(
+        "-d", "--decrypt", 
+        help="Decrypt a file using the specified key.", 
+        action="store_true"
+    )
+    parser.add_argument(
+        "key_file", 
+        type=str, 
+        help="Specify your key file name"
+    )
+    parser.add_argument(
+        "input_file", 
+        nargs="?", 
+        type=str, 
+        help="File to be processed. Required for encrypting or decrypting."
+    )
+    parser.add_argument(
+        "output_file", 
+        nargs="?", 
+        type=str, 
+        help="Specify output file name. If omitted, input file will be overwritten."
+    )
 
     args = parser.parse_args()
-
-    if args.encrypt or args.decrypt:
-            if not args.input_file or not args.output_file:
-                parser.error("Encrypt and decrypt require both input and output files.")
+    
+    if not (args.generate or args.password or args.encrypt or args.decrypt):
+        parser.error("At least one action is required: --generate, --encrypt, or --decrypt.")
+    
+    # Additional check for required input_file with encryption or decryption
+    if (args.encrypt or args.decrypt) and not args.input_file:
+        parser.error("Encrypt and decrypt require an input file.")
 
     return args
-
 
 def main():
     args = get_command_line_args()
     
-    # 'arguments' dict maps command-line args to functions. Lambda expressions for dynamic execution
-    arguments = {
-    "generate": lambda: gen_encryption_key(args.keyname), 
-    "password": lambda: gen_password_based_encryption_key(args.keyname), 
-    "encrypt": lambda: crypt_keeper("encrypt", args.keyname, args.input_file, args.output_file),
-    "decrypt": lambda: crypt_keeper("decrypt", args.keyname, args.input_file, args.output_file)
+    # Dictionary with 'keys' as tuples and 'values' as lambda functions
+    commands = {
+        ("generate", "password"): lambda: gen_password_based_encryption_key(args.key_file),
+        ("generate",): lambda: gen_encryption_key(args.key_file),
+        ("password",): lambda: print("Error: -p requires -g to generate a password-based encryption key."),
+        ("encrypt",): lambda: crypt_keeper("encrypt", args.key_file, args.input_file, args.output_file),
+        ("decrypt",): lambda: crypt_keeper("decrypt", args.key_file, args.input_file, args.output_file)
     }
     
-    # Iterate over each key-value pair in the 'arguments' dictionary.
-    for arg_name, function in arguments.items(): 
-        if getattr(args, arg_name): # Retrieve attribute value of args[arg_name]
-            function()
-
+    # Iterate over actions and execute the first matching condition
+    for keys, command in commands.items():
+        if all(getattr(args, key) for key in keys):
+            command()
+            break
 
 if __name__ == "__main__":
     main()
