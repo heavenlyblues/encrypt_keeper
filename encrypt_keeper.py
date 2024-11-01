@@ -6,13 +6,11 @@ import os
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 
-
 # Helper function to check and set a unique filename
 def unique_filename(filename):
     while os.path.exists(filename):
         filename = input("File already exists. Enter a new file name: ")
     return filename
-
 
 # Generate a Fernet key and save it to a file with 'FERNET' marker.
 def gen_encryption_key(keyname):
@@ -25,7 +23,6 @@ def gen_encryption_key(keyname):
             print(f"Key created successfully and saved to '{keyname}'.")
     except OSError as e:
         print(f"Error: Could not write to '{keyname}'. {e}")
-
 
 # Generate a password-based Scrypt key, save salt and keys to file 
 # as byte strings in base64 with 'PWDKEY' marker.
@@ -45,7 +42,6 @@ def gen_password_based_encryption_key(keyname):
     except OSError as e:
         print(f"Error: Could not write to '{keyname}'. {e}")
 
-
 # Derive a key using Scrypt with the provided salt 
 # and password, return salt and key as base64.
 def derive_key(salt, password):
@@ -58,7 +54,6 @@ def derive_key(salt, password):
     )
     derived_key = kdf.derive(password.encode())
     return base64.urlsafe_b64encode(salt), base64.urlsafe_b64encode(derived_key)
-
 
 # Verify the password by matching the stored key.
 def check_password(salt, stored_key):
@@ -113,7 +108,6 @@ def load_fernet_instance(keyname):
     except OSError as e:
         print(f"Error reading '{keyname}': {e}")
 
-
 # Take "action" – encrypt or decrypt a file using the specified key file
 def crypt_keeper(action, keyname, *args):
     input_file = args[0]
@@ -141,7 +135,6 @@ def crypt_keeper(action, keyname, *args):
         print(f"Error with file '{e.filename}': {e}")
     except Exception as e:
         print(f"Unexpected error: {e}")
-
 
 # Parse command-line arguments for key generation, encryption, and decryption.
 def get_command_line_args():
