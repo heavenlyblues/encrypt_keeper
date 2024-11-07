@@ -1,4 +1,3 @@
-import argparse
 import base64
 import getpass
 import os
@@ -6,45 +5,12 @@ import os
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 
-# Helper function to check and set a unique filename
-def unique_filename(filename):
-    while os.path.exists(filename):
-        filename = input("File already exists. Enter a new file name: ")
-    return filename
-
-# Generate a Fernet key and save it to a file with 'FERNET' marker.
-def gen_encryption_key(keyname):
-    keyname = unique_filename(keyname)
-    key = Fernet.generate_key()    
-    try:
-        with open(keyname, "wb") as file:
-            file.write(b"FERNET")
-            file.write(key)
-            print(f"Key created successfully and saved to '{keyname}'.")
-    except OSError as e:
-        print(f"Error: Could not write to '{keyname}'. {e}")
-
-# Generate a password-based Scrypt key, save salt and keys to file 
-# as byte strings in base64 with 'PWDKEY' marker.
-def gen_password_based_encryption_key(keyname):
-    print("Please create a password for your encryption key.")
-    password = getpass.getpass("Password: ")
-    salt = os.urandom(16)
-    salt_b64, key_b64 = derive_key(salt, password)
-
-    keyname = unique_filename(keyname)
-    try:
-        with open(keyname, "wb") as file:
-            file.write(b"PWDKEY")
-            file.write(salt_b64 + b'\n')
-            file.write(key_b64 + b'\n')
-        print("Key file saved successfully.")
-    except OSError as e:
-        print(f"Error: Could not write to '{keyname}'. {e}")
+from utils.utils import unique_filename, get_command_line_args
 
 # Derive a key using Scrypt with the provided salt 
 # and password, return salt and key as base64.
-def derive_key(salt, password):
+def derive_key(password):
+    salt = os.urandom(16)    
     kdf = Scrypt(
         salt=salt,
         length=32,
@@ -55,8 +21,38 @@ def derive_key(salt, password):
     derived_key = kdf.derive(password.encode())
     return base64.urlsafe_b64encode(salt), base64.urlsafe_b64encode(derived_key)
 
+# Generate a Fernet key and save it to a file with 'FERNET' marker.
+def gen_encryption_key(keyname):
+    unique_keyname = unique_filename(keyname)
+    key = Fernet.generate_key()    
+    try:
+        with open(f"keys/{unique_keyname}", "wb") as key_file:
+            key_file.write(b"FERNET")
+            key_file.write(key)
+            print(f"Key created successfully and saved to 'keys/{unique_keyname}'.")
+    except OSError as e:
+        print(f"Error: Could not write to 'keys/{unique_keyname}'. {e}")
+
+# Generate a password-based Scrypt key, save salt and keys to file 
+# as byte strings in base64 with 'PWDKEY' marker.
+def gen_password_based_encryption_key(keyname):
+    print("Please create a password for your encryption key.")
+    password = getpass.getpass("Password: ")
+    salt_b64, key_b64 = derive_key(password)
+
+    unique_keyname = unique_filename(keyname)
+    try:
+        with open(f"keys/{unique_keyname}", "wb") as key_file:
+            key_file.write(b"PWDKEY")
+            key_file.write(salt_b64 + b'\n')
+            key_file.write(key_b64 + b'\n')
+        print(f"Key created successfully and saved to 'keys/{unique_keyname}'.")
+    except OSError as e:
+        print(f"Error: Could not write to 'keys/{unique_keyname}'. {e}")
+
+
 # Verify the password by matching the stored key.
-def check_password(salt, stored_key):
+def check_password(salt, key):
     password = getpass.getpass("Password: ")
     kdf = Scrypt(
         salt=salt,
@@ -66,7 +62,7 @@ def check_password(salt, stored_key):
         p=1,
     )
     try:
-        kdf.verify(password.encode(), stored_key)
+        kdf.verify(password.encode(), key)
         print("Password verified succesfully.")
         return True
     except Exception:
@@ -75,57 +71,59 @@ def check_password(salt, stored_key):
     
 
 # Load Fernet instance from a key file based on its type (FERNET or PWDKEY).
-def load_fernet_instance(keyname):
+def load_fernet_instance(stored_key):
+    if not stored_key.endswith(".key"):
+        stored_key += ".key"
     try:
-        with open(keyname, "rb") as key_file:
+        with open(f"keys/{stored_key}", "rb") as key_file:
             marker = key_file.read(6)
             
             if marker == b"PWDKEY":
                 # For password-based keys, read salt and stored key
                 salt_b64 = key_file.readline().strip()
-                stored_key_b64 = key_file.readline().strip()
+                key_b64 = key_file.readline().strip()
 
                 # Decode from base64 for password check
                 salt = base64.urlsafe_b64decode(salt_b64)
-                stored_key = base64.urlsafe_b64decode(stored_key_b64)
+                key = base64.urlsafe_b64decode(key_b64)
                 
-                if check_password(salt, stored_key):
-                    return Fernet(base64.urlsafe_b64encode(stored_key))
+                if check_password(salt, key):
+                    return Fernet(base64.urlsafe_b64encode(key))
                 else:
                     print("Incorrect password")
                     return None
 
             elif marker == b"FERNET":
                 # For direct Fernet keys
-                stored_key = key_file.read()
-                return Fernet(stored_key)
+                key = key_file.read()
+                return Fernet(key)
             else:
                 print("File format not recognized.")
                 return None
 
     except FileNotFoundError:
-        print(f"Error: The key '{keyname}' was not found.")
+        print(f"Error: The key '{stored_key}' was not found.")
     except OSError as e:
-        print(f"Error reading '{keyname}': {e}")
+        print(f"Error reading '{stored_key}': {e}")
 
 # Take "action" – encrypt or decrypt a file using the specified key file
-def crypt_keeper(action, keyname, *args):
+def crypt_keeper(action, stored_key, *args):
     input_file = args[0]
     output_file = args[1] if args[1] is not None else input_file 
 
-    f = load_fernet_instance(keyname)
+    f = load_fernet_instance(stored_key)
     if f is None:
         print("Error: Failed to load encryption key.")
         return
     
     try:
-        with open(input_file, "rb") as file:
+        with open(f"data/{input_file}", "rb") as file:
             data = file.read()
 
         token = f.encrypt(data) if action == "encrypt" else f.decrypt(data)
-        print(f"Data {action}ed successfully...")
+        print(f"Data {action}ed successfully.")
         
-        with open(output_file, "wb") as file:
+        with open(f"data/{output_file}", "wb") as file:
             file.write(token)
         print(f"File saved as {output_file}.")
 
@@ -135,60 +133,6 @@ def crypt_keeper(action, keyname, *args):
         print(f"Error with file '{e.filename}': {e}")
     except Exception as e:
         print(f"Unexpected error: {e}")
-
-# Parse command-line arguments for key generation, encryption, and decryption.
-def get_command_line_args():
-    parser = argparse.ArgumentParser(
-        description="WELCOME TO THE CRYPT..."
-        "Encrypt, decrypt, and manage keys with optional password protection."
-    )
-    parser.add_argument(
-        "-k", "--key", 
-        help="Generate an encryption key.", 
-        action="store_true"
-    )
-    parser.add_argument(
-        "-s", "--secure_key", 
-        help="Generate a password-based encryption key.", 
-        action="store_true"
-    )
-    parser.add_argument(
-        "-e", "--encrypt", 
-        help="Encrypt a file using the specified key.", 
-        action="store_true"
-    )
-    parser.add_argument(
-        "-d", "--decrypt", 
-        help="Decrypt a file using the specified key.", 
-        action="store_true"
-    )
-    parser.add_argument(
-        "key_file", 
-        type=str, 
-        help="Specify your key file name"
-    )
-    parser.add_argument(
-        "input_file", 
-        nargs="?", 
-        type=str, 
-        help="File to be processed. Required for encrypting or decrypting."
-    )
-    parser.add_argument(
-        "output_file", 
-        nargs="?", 
-        type=str, 
-        help="Specify output file name. If omitted, input file will be overwritten."
-    )
-
-    args = parser.parse_args()
-    
-    if not (args.key or args.secure_key or args.encrypt or args.decrypt):
-        parser.error("At least one action is required: --key, --encrypt, or --decrypt.")
-
-    if (args.encrypt or args.decrypt) and not args.input_file:
-        parser.error("Encrypt and decrypt require an input file.")
-
-    return args
 
 def main():
     args = get_command_line_args()
