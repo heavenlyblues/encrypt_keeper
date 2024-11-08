@@ -5,7 +5,7 @@ import os
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 
-from utils.utils import unique_filename, get_command_line_args
+from utils.utils import unique_key_filename, get_filenames, get_command_line_args
 
 # Derive a key using Scrypt with the provided salt 
 # and password, return salt and key as base64.
@@ -23,7 +23,7 @@ def derive_key(password):
 
 # Generate a Fernet key and save it to a file with 'FERNET' marker.
 def gen_encryption_key(keyname):
-    unique_keyname = unique_filename(keyname)
+    unique_keyname = unique_key_filename(keyname)
     key = Fernet.generate_key()    
     try:
         with open(f"keys/{unique_keyname}", "wb") as key_file:
@@ -40,7 +40,7 @@ def gen_password_based_encryption_key(keyname):
     password = getpass.getpass("Password: ")
     salt_b64, key_b64 = derive_key(password)
 
-    unique_keyname = unique_filename(keyname)
+    unique_keyname = unique_key_filename(keyname)
     try:
         with open(f"keys/{unique_keyname}", "wb") as key_file:
             key_file.write(b"PWDKEY")
@@ -107,25 +107,51 @@ def load_fernet_instance(stored_key):
         print(f"Error reading '{stored_key}': {e}")
 
 # Take "action" – encrypt or decrypt a file using the specified key file
-def crypt_keeper(action, stored_key, *args):
-    input_file = args[0]
-    output_file = args[1] if args[1] is not None else input_file 
-
+def crypt_keeper(action, stored_key, input_file, output_file=None):
     f = load_fernet_instance(stored_key)
     if f is None:
         print("Error: Failed to load encryption key.")
         return
     
     try:
-        with open(f"data/{input_file}", "rb") as file:
-            data = file.read()
+        # Use helper to get filenames and metadata
+        metadata, temp_path, final_path = get_filenames(action, input_file, output_file)
 
-        token = f.encrypt(data) if action == "encrypt" else f.decrypt(data)
-        print(f"Data {action}ed successfully.")
-        
-        with open(f"data/{output_file}", "wb") as file:
-            file.write(token)
-        print(f"File saved as {output_file}.")
+        if action == "encrypt":
+            # Read original file content and encrypt with metadata
+            with open(f"data/{input_file}", "rb") as file:
+                plaintext = file.read()
+            ciphertext = f.encrypt(metadata + plaintext)
+            print("Data encrypted successfully.")
+
+        elif action == "decrypt":
+            input_file += ".enc" if not input_file.endswith(".enc") else ""
+
+            # Read encrypted data and decrypt it
+            with open(f"data/{input_file}", "rb") as file:
+                encrypted_data = file.read()
+            decrypted_data = f.decrypt(encrypted_data)
+            print("Data decrypted successfully.")
+
+            # Extract metadata for original extension
+            metadata, plaintext = decrypted_data.split(b'|', 1)
+            original_extension = metadata.decode().split("EXT:", 1)[-1]
+
+            # Update final output filenames based on the original extension
+            temp_path += f".{original_extension}"
+            final_path += f".{original_extension}"
+
+        # Write to the temporary file
+        with open(temp_path, "wb") as file:
+            file.write(ciphertext if action == "encrypt" else plaintext)
+        print(f"Temporary file created: {temp_path}")
+
+        # Remove the original file only after successful processing
+        if output_file is None:
+            os.remove(f"data/{input_file}")  # Delete the original file
+        os.rename(temp_path, final_path)  # Rename temp file to final output file
+
+        print(f"File saved as {final_path}")
 
     except FileNotFoundError as e:
         print(f"Error: '{e.filename}' not found.")
