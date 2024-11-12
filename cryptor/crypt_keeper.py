@@ -18,7 +18,7 @@ class CryptKeeper(BaseCipher):
 
     def _save_to_file(self, temp_path, data_to_write, final_path):
         # Write to the temporary file
-        with open(temp_path, "wb") as file:
+        with temp_path.open(mode="wb") as file:
             file.write(data_to_write)
         print(f"Temporary file created: {temp_path}")
 
@@ -81,7 +81,7 @@ class CryptKeeper(BaseCipher):
 
             if self.mode == "encrypt":
                 # Read original file content and encrypt with metadata
-                with open(file_to_process, "rb") as file:
+                with file_to_process.open(mode="rb") as file:
                     plaintext = file.read()
                 ciphertext = fernet_cipher.encrypt(metadata + plaintext)
                 print("Data encrypted successfully.")
@@ -89,7 +89,7 @@ class CryptKeeper(BaseCipher):
 
             elif self.mode == "decrypt":
                 # Read encrypted data and decrypt and extract metadata
-                with open(file_to_process, "rb") as file:
+                with file_to_process.open(mode="rb") as file:
                     encrypted_data = file.read()
                 decrypted_data = fernet_cipher.decrypt(encrypted_data)
                 print("Data decrypted successfully.")
