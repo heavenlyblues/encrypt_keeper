@@ -1,18 +1,21 @@
 import sys
-from key_generation import gen_encryption_key, gen_password_based_encryption_key
-from encryption import crypt_keeper
-from utils.utils import get_command_line_args
+from cryptor.key_forge import KeyForge
+from cryptor.crypt_keeper import CryptKeeper
+from utils.cli import get_command_line_args
 
 
 def main():
     args = get_command_line_args()
-    
+
+    key_maker = KeyForge(args.key_file)
+    cryptor = CryptKeeper(args.key_file, args.input_file, args.output_file)
+
     # Dictionary with 'keys' as command line arguments and 'values' as lambda functions
     commands = {
-        "key": lambda: gen_encryption_key(args.key_file),
-        "secure_key": lambda: gen_password_based_encryption_key(args.key_file),
-        "encrypt": lambda: crypt_keeper("encrypt", args.key_file, args.input_file, args.output_file),
-        "decrypt": lambda: crypt_keeper("decrypt", args.key_file, args.input_file, args.output_file)
+        "key": lambda: key_maker.forge_key(),
+        "secure_key": lambda: key_maker.forge_secure_key(),
+        "encrypt": lambda: cryptor.crypt_keeper("encrypt"),
+        "decrypt": lambda: cryptor.crypt_keeper("decrypt")
     }
     
     # Iterate over actions and execute the first matching condition

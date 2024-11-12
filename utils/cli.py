@@ -1,57 +1,6 @@
 import argparse
-import os
-import time
 
 COLOR, RESET = "\033[0;35m", "\033[0m"
-
-
-# Helper function to check and set a unique filename
-# Add .key extension if missing and ensure the directory exists
-def unique_key_filename(keyname):
-    if not keyname.endswith(".key"):
-        keyname += ".key"
-    
-    os.makedirs("keys", exist_ok=True)
-
-    while os.path.exists(f"./keys/{keyname}"):
-        keyname = input("File already exists. Enter a new file name: ")
-        if not keyname.endswith(".key"):
-            keyname += ".key"
-            
-    return keyname
-
-
-def get_filenames(action, input_file, output_file=None):
-    # Handle encryption
-    if action == "encrypt":
-        # For encryption: check if the file has an extension and set metadata accordingly
-        if "." in input_file:
-            original_extension = input_file.rsplit(".", 1)[-1]
-            base_name = input_file.rsplit(".", 1)[0]
-        else:
-            original_extension = ""  # No extension
-            base_name = input_file
-
-        metadata = f"EXT:{original_extension}|".encode()
-        temp_path = f"./data/{base_name}_temp_{int(time.time())}.enc"
-        final_path = f"./data/{base_name}.enc" if output_file is None else f"./data/{output_file}.enc"
-
-    # Handle decryption
-    elif action == "decrypt":
-            input_file += ".enc" if not input_file.endswith(".enc") else ""
-        
-            # Temporary file for decryption
-            base_name = input_file.rsplit(".", 1)[0]
-            temp_path = f"./data/{base_name}_temp_{int(time.time())}"  # Extension will be updated after reading metadata
-            
-            # Set final output file based on provided or detected extension
-            final_path = f"./data/{base_name}" if output_file is None else f"./data/{output_file}"
-            metadata = None  # Metadata read on file open in crypt_keeper
-    
-    else:
-        raise ValueError("Invalid action or file extension.")
-
-    return metadata, temp_path, final_path
 
 
 # Parse command-line arguments for key generation, encryption, and decryption.
