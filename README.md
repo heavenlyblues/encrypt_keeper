@@ -1,7 +1,7 @@
 
 # Encrypt Keeper
 
-**Encrypt Keeper** is a symmetrical encryption and decryption tool designed to securely manage files and keys. The tool offers both basic encryption using a randomly generated key and password-based encryption using Scrypt for added security. Encrypt Keeper is built using Python and leverages the `cryptography` library, making it suitable for secure file handling with easy-to-use command-line options.
+**Encrypt Keeper** is a symmetric+key encryption and decryption tool designed to securely manage files and keys. The tool offers both basic encryption using a randomly generated key and password-based encryption using Scrypt for added security. Encrypt Keeper is built using Python and leverages the `cryptography` library, making it suitable for secure file handling with easy-to-use command-line options.
 
 ## Features
 
