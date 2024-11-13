@@ -4,6 +4,11 @@ import time
 
 
 def get_filepaths(mode, input_file, output_file=None):
+    """
+    Builds filepaths to return, depending on mode and whether or not an output file was give.
+    If mode is encrypt, collects and formats file extension data for adding to the data to be encrypted
+    so it can be restored upon decryption.
+    """
     input_path = Path("data") / input_file
     base_name = input_path.stem
     original_extension = input_path.suffix.lstrip(".")
@@ -28,13 +33,14 @@ def get_filepaths(mode, input_file, output_file=None):
 
 def save_to_file(temp_path, data_to_write, final_path, input_file=None, output_file=None):
     """
-    Save data to a temporary file and handle renaming or in-place operations.
+    Save data to a temporary file and handle renaming or encrypt/decrypt in-place operations.
+    If no output file, the input_file name will be used. 
 
     Args:
         temp_path (Path): Path to the temporary file.
         data_to_write (bytes): Data to write to the file.
         final_path (Path): Final path for the output file.
-        input_file (str, optional): The original input file name (for in-place operations).
+        input_file (str): The original input file name (for in-place operations).
         output_file (str, optional): The user-specified output file name.
 
     Returns:
@@ -85,13 +91,12 @@ def rename_with_prompt(temp_path, final_path, prompt_message="Enter a new name f
 
 def is_valid_filename(filename):
     """
-    Checks if a filename is valid.
-
     Args:
         filename (str): The filename to validate.
 
     Returns:
         bool: True if the filename is valid, False otherwise.
+        Probably needs more testing.
     """
     # Allow alphanumeric, underscores, hyphens, and spaces
     return re.match(r'^[\w\- ]+(\.[\w]+)?$', filename) is not None

@@ -16,7 +16,7 @@ class KeyForge(BaseCipher):
 
 
     def _unique_key_filename(self):
-        # Ensure the filename has a ".key" extension
+        # Ensure the filename has a ".key" extension and return the final key path as a (Path type)
         filename = f"{self.key_name}.key" if not self.key_name.endswith(".key") else self.key_name
 
         unique_keypath = Path("keys") / filename
@@ -78,9 +78,3 @@ class KeyForge(BaseCipher):
             p=self.SCRYPT_P,
         )
         return scrypt_kdf
-    
-
-# Potential "high security" subclass for later development
-class HighSecurityKeyForge(KeyForge):
-    SCRYPT_N = 2**18  # Higher CPU/memory cost for enhanced security
-    SCRYPT_R = 16     # Increased block size for higher security

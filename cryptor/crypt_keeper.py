@@ -20,6 +20,13 @@ class CryptKeeper(BaseCipher):
 
     # Load Fernet instance from a key file based on its type (FERNET or PWDKEY).
     def get_fernet_cipher(self):
+        """
+        Load a Fernet cipher instance from a key file. 
+        Reads a key file and determines its type based on a marker.
+        It supports two types of key files:
+        - `PWDKEY`: Password-based keys derived using Scrypt.
+        - `FERNET`: Direct Fernet keys.
+        """
         filename = f"{self.key_name}.key" if not self.key_name.endswith(".key") else self.key_name
         keypath = Path("keys") / filename
 
@@ -58,7 +65,8 @@ class CryptKeeper(BaseCipher):
 
     def decrypt_data(self, fernet_cipher):
         """
-        Decrypts an encrypted file, extracts metadata, and saves the decrypted data.
+        Decrypts an encrypted file and reads metadata, creates file paths calling get_filepaths func, 
+        and sends the decrypted data to save to file func.
 
         Parameters:
             fernet_cipher (cryptography.fernet.Fernet): The Fernet cipher object used for decryption.
@@ -95,6 +103,13 @@ class CryptKeeper(BaseCipher):
 
 
     def encrypt_data(self, fernet_cipher):
+        """
+        Encrypts a 'plaintext' file, collects metadata and creates filepaths 
+        calling get_filenames func, and sends the decrypted data to save to file func.
+
+        Parameters:
+            fernet_cipher (cryptography.fernet.Fernet): The Fernet cipher object used for decryption.
+        """
         try:
             metadata, temp_path, final_path = get_filepaths(self.mode, self.input_file, self.output_file)
             file_to_process = Path ("data") / self.input_file
@@ -135,6 +150,10 @@ class CryptKeeper(BaseCipher):
 
         elif self.mode == "decrypt":
             self.decrypt_data(fernet_cipher)
+        
+        else:
+            ValueError
+            print(f"{self.mode} not recognized as valid mode.")
 
 
     # Verify the password against a stored key using the Scrypt KDF.
